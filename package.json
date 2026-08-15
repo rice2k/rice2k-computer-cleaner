@@ -1,0 +1,43 @@
+{
+  "name": "rice2k-computer-cleaner",
+  "version": "1.0.0",
+  "description": "Rice2k Computer Cleaner is a Windows desktop cleaner with safe junk scanning, startup review, software update checks, driver age review, duplicate scanning, and performance helper views.",
+  "main": "src/main.js",
+  "author": "rice2k",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "pack": "npx electron-builder --dir",
+    "dist": "npx electron-builder --win nsis portable",
+    "lint": "node scripts/smoke-test.js"
+  },
+  "build": {
+    "appId": "com.rice2k.computercleaner",
+    "productName": "Rice2k Computer Cleaner",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "assets/**/*",
+      "renderer/**/*",
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/rice2k-cleaner-icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.7.7"
+  }
+}

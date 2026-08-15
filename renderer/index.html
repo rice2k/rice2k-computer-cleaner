@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';">
+    <title>Rice2k Computer Cleaner</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <img src="../assets/rice2k-cleaner-icon-256.png" alt="">
+          <span>Rice2k Cleaner</span>
+        </div>
+        <button class="hamburger" aria-label="Menu">☰</button>
+        <nav id="nav"></nav>
+        <div class="sidebar-bottom">
+          <button class="nav-item small" data-page="settings"><span class="nav-icon">⚙</span>Settings</button>
+          <button class="nav-item small" data-page="help"><span class="nav-icon">?</span>Help</button>
+          <button class="upgrade">Upgrade now</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <section class="panel">
+          <div id="view"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
