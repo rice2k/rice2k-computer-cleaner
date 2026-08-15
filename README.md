@@ -8,16 +8,19 @@ Rice2k Computer Cleaner is a Windows desktop PC care app with a dark, scan-first
 - Custom Clean for safe junk scanning and cleanup
 - Browser cache scanning for Edge, Chrome, and Firefox
 - Performance Optimizer that lists heavy background apps and can put selected apps to sleep after confirmation
-- Software Updater page powered by Windows Package Manager (`winget`) in review mode
+- Software Updater page powered by Windows Package Manager (`winget`) with per-app update buttons
 - Driver Updater page that lists driver ages in review mode
 - Startup Manager that lists Windows startup entries and opens Windows Startup settings
-- Uninstaller page that lists installed apps and opens Windows Apps settings
-- Duplicate Finder that hashes files and reports duplicate groups without deleting them
+- Uninstaller page that lists and searches installed apps, then opens Windows Apps settings
+- Duplicate Finder that hashes files, reports duplicate groups, and lets you open a duplicate location without deleting files
+- Cloud Drive Cleaner page that reviews local OneDrive, Google Drive, and Dropbox folders/caches and can send a folder to Duplicate Finder
 - Custom Windows app icon generated for Rice2k Computer Cleaner
 
 ## Safety model
 
 The app only deletes safe cache and temp files that can be recreated by Windows or apps. It does not delete documents, downloads, cloud files, registry keys, drivers, installed apps, or duplicate files.
+
+Software updates are launched through `winget` only after you click an app's Update button and confirm the prompt.
 
 See [docs/SAFETY.md](docs/SAFETY.md) for the detailed cleanup boundaries.
 
@@ -28,6 +31,10 @@ See [docs/SAFETY.md](docs/SAFETY.md) for the detailed cleanup boundaries.
 ![Custom Clean](docs/screenshots/custom-clean.png)
 
 ![Performance Optimizer](docs/screenshots/performance-optimizer.png)
+
+![Software Updater](docs/screenshots/software-updater.png)
+
+![Cloud Drive Cleaner](docs/screenshots/cloud-drive-cleaner.png)
 
 ## Interface
 
@@ -40,7 +47,7 @@ See [docs/SAFETY.md](docs/SAFETY.md) for the detailed cleanup boundaries.
 ## Requirements
 
 - Windows 10 or Windows 11
-- Node.js 20 or newer for development
+- Node.js 22.12 or newer for development
 - Windows Package Manager (`winget`) is optional and only needed for the Software Updater page
 
 ## Run from source
@@ -81,7 +88,9 @@ src/          Electron main process, preload bridge, and cleaner engine
 
 ## Notes
 
-- Driver updates and app updates are review-only.
+- Driver updates are review-only and route to Windows tools.
+- App updates use `winget` after confirmation.
 - Registry cleaning is intentionally not implemented.
 - Duplicate finding is report-only.
+- Cloud folder scanning is report-only.
 - Some cleanup targets may skip locked files, which is normal while apps are running.

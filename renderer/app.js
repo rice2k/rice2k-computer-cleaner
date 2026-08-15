@@ -10,9 +10,14 @@ const navItems = [
   { id: 'startup', label: 'Startup Manager', icon: '▱' }
 ];
 
+const REPO_URL = 'https://github.com/rice2k/rice2k-computer-cleaner';
+const RELEASE_URL = `${REPO_URL}/releases/latest`;
+const SAFETY_URL = `${REPO_URL}/blob/main/docs/SAFETY.md`;
+
 const state = {
   page: 'health',
   busy: false,
+  cleanFilter: 'junk',
   health: null,
   cleanable: null,
   processes: [],
@@ -21,6 +26,8 @@ const state = {
   startup: [],
   apps: [],
   duplicates: null,
+  cloud: null,
+  appSearch: '',
   selectedCleanIds: new Set()
 };
 
@@ -95,6 +102,24 @@ function plainView(body, footer = '') {
 function impactDots(impact) {
   const count = impact === 'High' ? 3 : impact === 'Medium' ? 2 : 1;
   return `<span class="dots">${[0, 1, 2].map((index) => `<span class="${index < count ? 'on' : ''}"></span>`).join('')}</span>`;
+}
+
+function cleanLocationsForFilter() {
+  const locations = state.cleanable?.locations || [];
+  if (state.cleanFilter === 'browser') return locations.filter((item) => item.group === 'Browser');
+  if (state.cleanFilter === 'registry') return [];
+  return locations.filter((item) => item.group !== 'Browser');
+}
+
+function cleanFilterLabel() {
+  if (state.cleanFilter === 'browser') return 'browser cache';
+  if (state.cleanFilter === 'registry') return 'registry review';
+  return 'safe junk';
+}
+
+function visibleSelectedCleanIds() {
+  const visible = new Set(cleanLocationsForFilter().map((item) => item.id));
+  return [...state.selectedCleanIds].filter((id) => visible.has(id));
 }
 
 function categoryRows(categories) {
@@ -185,9 +210,9 @@ function renderHealth() {
 function cleanTabs() {
   return `
     <div class="tabs">
-      <button class="tab active">▣ Junk</button>
-      <button class="tab">▤ Browser</button>
-      <button class="tab">▦ Registry</button>
+      <button class="tab ${state.cleanFilter === 'junk' ? 'active' : ''}" data-action="set-clean-filter" data-filter="junk">▣ Junk</button>
+      <button class="tab ${state.cleanFilter === 'browser' ? 'active' : ''}" data-action="set-clean-filter" data-filter="browser">▤ Browser</button>
+      <button class="tab ${state.cleanFilter === 'registry' ? 'active' : ''}" data-action="set-clean-filter" data-filter="registry">▦ Registry</button>
     </div>
   `;
 }
@@ -195,7 +220,8 @@ function cleanTabs() {
 function renderCustomClean() {
   const data = state.cleanable;
   const selected = state.selectedCleanIds;
-  const locations = data?.locations || [];
+  const locations = cleanLocationsForFilter();
+  const selectedVisibleIds = visibleSelectedCleanIds();
   const allSelected = locations.length > 0 && locations.every((item) => selected.has(item.id));
 
   const left = `
@@ -203,10 +229,29 @@ function renderCustomClean() {
       <div class="check-row" data-action="toggle-all-clean">
         <span class="checkbox ${allSelected ? '' : 'empty'}">${allSelected ? '−' : ''}</span>
         <span></span>
-        <span>Select all</span>
+        <span>Select ${cleanFilterLabel()}</span>
         <span>↻</span>
       </div>
-      ${locations.map((item) => `
+      ${state.cleanFilter === 'registry' ? `
+        <div class="check-row ghost-row">
+          <span class="checkbox empty"></span>
+          <span>▦</span>
+          <span>Registry review</span>
+          <span>ⓘ</span>
+        </div>
+        <div class="check-row ghost-row">
+          <span class="checkbox empty"></span>
+          <span>▱</span>
+          <span>Startup entries</span>
+          <span>⌄</span>
+        </div>
+        <div class="check-row ghost-row">
+          <span class="checkbox empty"></span>
+          <span>▰</span>
+          <span>Installed apps</span>
+          <span>⌄</span>
+        </div>
+      ` : locations.map((item) => `
         <div class="check-row" data-action="toggle-clean" data-id="${item.id}">
           <span class="checkbox ${selected.has(item.id) ? '' : 'empty'}">${selected.has(item.id) ? '−' : ''}</span>
           <span>▧</span>
@@ -217,15 +262,34 @@ function renderCustomClean() {
     </div>
   `;
 
-  const results = !data ? `
+  const registryPanel = `
+    <div class="results-area">
+      <h2 class="results-title">Registry review is read-only</h2>
+      <div class="metric-grid">
+        <div class="metric"><div class="label">Mode</div><div class="value">Safe</div></div>
+        <div class="metric"><div class="label">Deletes</div><div class="value">None</div></div>
+        <div class="metric"><div class="label">Action</div><div class="value">Review</div></div>
+      </div>
+      <table class="table">
+        <thead><tr><th>Area</th><th>Why it is handled this way</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>Registry keys</td><td>Registry cleanup can break apps or Windows settings.</td><td class="issue">Read-only</td></tr>
+          <tr><td>Startup entries</td><td>Windows has a safer built-in manager for disabling startup items.</td><td class="issue">Open settings</td></tr>
+          <tr><td>Installed apps</td><td>Uninstalling apps should stay inside Windows Apps settings.</td><td class="issue">Open settings</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  const results = state.cleanFilter === 'registry' ? registryPanel : !data ? `
     <div class="empty-state"><div><h2>Custom Clean</h2><p>Run a scan to find safe junk files.</p></div></div>
   ` : `
     <div class="results-area">
-      <h2 class="results-title">Your scan results (${data.issueCount} issues)</h2>
+      <h2 class="results-title">Your ${cleanFilterLabel()} results (${locations.length} locations)</h2>
       <div class="metric-grid">
-        <div class="metric"><div class="label">Files</div><div class="value">${data.totalFiles}</div></div>
-        <div class="metric"><div class="label">Space</div><div class="value">${bytes(data.totalSize)}</div></div>
-        <div class="metric"><div class="label">Locations</div><div class="value">${data.issueCount}</div></div>
+        <div class="metric"><div class="label">Files</div><div class="value">${locations.reduce((sum, item) => sum + item.fileCount, 0)}</div></div>
+        <div class="metric"><div class="label">Space</div><div class="value">${bytes(locations.reduce((sum, item) => sum + item.size, 0))}</div></div>
+        <div class="metric"><div class="label">Selected</div><div class="value">${selectedVisibleIds.length}</div></div>
       </div>
       <table class="table">
         <thead><tr><th>Name</th><th>Number of items</th><th>Size</th></tr></thead>
@@ -236,16 +300,21 @@ function renderCustomClean() {
               <td>${item.fileCount}</td>
               <td>${bytes(item.size)}</td>
             </tr>
-          `).join('')}
+          `).join('') || '<tr class="muted-row"><td>No matching cleanup locations found.</td><td></td><td></td></tr>'}
         </tbody>
       </table>
     </div>
   `;
 
-  view.innerHTML = shell('Custom Clean', `<div class="split">${left}${results}</div>`, `
+  const footer = state.cleanFilter === 'registry' ? `
+    <button class="button" data-action="open-startup-settings">Open Startup settings</button>
+    <button class="button primary" data-action="open-app-settings">Open Apps settings</button>
+  ` : `
     <button class="button" data-action="scan-clean">Scan again</button>
-    <button class="button blue" data-action="clean-selected" ${selected.size === 0 ? 'disabled' : ''}>Clean and fix</button>
-  `, cleanTabs());
+    <button class="button blue" data-action="clean-selected" ${selectedVisibleIds.length === 0 ? 'disabled' : ''}>Clean and fix</button>
+  `;
+
+  view.innerHTML = shell('Custom Clean', `<div class="split">${left}${results}</div>`, footer, cleanTabs());
 }
 
 function renderOptimizer() {
@@ -306,7 +375,11 @@ function renderDrivers() {
     </table>
   `;
 
-  view.innerHTML = shell('Driver Updater', body, `<button class="button primary" data-action="load-drivers">Scan again</button>`);
+  view.innerHTML = shell('Driver Updater', body, `
+    <button class="button" data-action="open-windows-update">Open Windows Update</button>
+    <button class="button" data-action="open-device-manager">Device Manager</button>
+    <button class="button primary" data-action="load-drivers">Scan again</button>
+  `);
 }
 
 function renderSoftware() {
@@ -318,7 +391,7 @@ function renderSoftware() {
       <p class="subtle">${updates?.available === false ? escapeHtml(updates.message || 'winget is unavailable.') : 'Updates are checked with Windows Package Manager.'}</p>
     </div>
     <table class="table">
-      <thead><tr><th>App</th><th>Installed</th><th>Available</th><th>Source</th></tr></thead>
+      <thead><tr><th>App</th><th>Installed</th><th>Available</th><th>Source</th><th>Action</th></tr></thead>
       <tbody>
         ${rows.map((item) => `
           <tr>
@@ -326,13 +399,17 @@ function renderSoftware() {
             <td>${escapeHtml(item.version)}</td>
             <td class="issue">${escapeHtml(item.available)}</td>
             <td>${escapeHtml(item.source)}</td>
+            <td class="list-actions"><button class="pill" data-action="update-software" data-package-id="${escapeHtml(item.id)}">Update</button></td>
           </tr>
-        `).join('') || '<tr class="muted-row"><td>No app updates found.</td><td></td><td></td><td></td></tr>'}
+        `).join('') || '<tr class="muted-row"><td>No app updates found.</td><td></td><td></td><td></td><td></td></tr>'}
       </tbody>
     </table>
   `;
 
-  view.innerHTML = shell('Software Updater', body, `<button class="button primary" data-action="load-updates">Scan again</button>`);
+  view.innerHTML = shell('Software Updater', body, `
+    <button class="button" data-action="open-microsoft-store-updates">Open Microsoft Store</button>
+    <button class="button primary" data-action="load-updates">Scan again</button>
+  `);
 }
 
 function renderStartup() {
@@ -364,11 +441,17 @@ function renderStartup() {
 }
 
 function renderUninstaller() {
-  const rows = state.apps;
+  const query = state.appSearch.trim().toLowerCase();
+  const rows = query
+    ? state.apps.filter((item) => `${item.name} ${item.publisher} ${item.version}`.toLowerCase().includes(query))
+    : state.apps;
   const body = `
-    <div class="page-title">
-      <h2><strong>${rows.length}</strong> installed apps</h2>
-      <p class="subtle">Review apps and open Windows apps settings when you are ready.</p>
+    <div class="toolbar">
+      <div class="page-title">
+        <h2><strong>${rows.length}</strong> installed apps</h2>
+        <p class="subtle">Review apps and open Windows apps settings when you are ready.</p>
+      </div>
+      <input class="input" type="search" placeholder="Search apps" value="${escapeHtml(state.appSearch)}" data-action="app-search">
     </div>
     <table class="table">
       <thead><tr><th>App</th><th>Publisher</th><th>Version</th><th>Install date</th></tr></thead>
@@ -408,15 +491,16 @@ function renderDuplicates() {
         <div class="metric"><div class="label">Wasted space</div><div class="value">${bytes(dupes.totalWasted)}</div></div>
       </div>
       <table class="table">
-        <thead><tr><th>Duplicates</th><th>Size</th><th>Wasted</th></tr></thead>
+        <thead><tr><th>Duplicates</th><th>Size</th><th>Wasted</th><th>Action</th></tr></thead>
         <tbody>
           ${dupes.groups.map((group) => `
             <tr>
-              <td>${group.files.map((file) => `<div class="path">${escapeHtml(file.path)}</div>`).join('')}</td>
+              <td>${group.files.map((file) => `<div class="path wide">${escapeHtml(file.path)}</div>`).join('')}</td>
               <td>${bytes(group.size)}</td>
               <td class="issue">${bytes(group.wasted)}</td>
+              <td class="list-actions"><button class="button compact" data-action="reveal" data-path="${escapeHtml(group.files[0]?.path || '')}">Open</button></td>
             </tr>
-          `).join('') || '<tr class="muted-row"><td>No duplicates found.</td><td></td><td></td></tr>'}
+          `).join('') || '<tr class="muted-row"><td>No duplicates found.</td><td></td><td></td><td></td></tr>'}
         </tbody>
       </table>
     ` : '<div class="empty-state">No folder selected.</div>'}
@@ -426,26 +510,46 @@ function renderDuplicates() {
 }
 
 function renderCloud() {
+  const cloud = state.cloud;
+  const providers = cloud?.providers || [];
   const body = `
-    <div class="page-title">
-      <h2>Cloud Drive Cleaner</h2>
-      <p class="subtle">Cloud folders are reviewed from their local cache locations.</p>
+    <div class="toolbar">
+      <div class="page-title">
+        <h2>Cloud Drive Cleaner</h2>
+        <p class="subtle">Review local cloud folders and caches before opening or scanning them for duplicates.</p>
+      </div>
+      <button class="button primary" data-action="scan-cloud">Scan cloud folders</button>
     </div>
-    <table class="table">
-      <thead><tr><th>Provider</th><th>Detected path</th><th>Status</th></tr></thead>
-      <tbody>
-        ${['OneDrive', 'Google Drive', 'Dropbox'].map((name) => `
-          <tr>
-            <td>${name}</td>
-            <td><span class="path">${name === 'OneDrive' ? escapeHtml(window.localStorage.getItem('oneDrivePath') || 'Use Custom Clean for local cache files') : 'Not connected in this build'}</span></td>
-            <td class="issue">Review</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
+    ${cloud ? `
+      <div class="metric-grid">
+        <div class="metric"><div class="label">Detected</div><div class="value">${cloud.detected}</div></div>
+        <div class="metric"><div class="label">Files reviewed</div><div class="value">${cloud.totalFiles}</div></div>
+        <div class="metric"><div class="label">Space found</div><div class="value">${bytes(cloud.totalSize)}</div></div>
+      </div>
+      <table class="table">
+        <thead><tr><th>Provider</th><th>Detected path</th><th>Items</th><th>Size</th><th>Action</th></tr></thead>
+        <tbody>
+          ${providers.map((provider) => `
+            <tr>
+              <td>${escapeHtml(provider.name)}<div class="status ${provider.status === 'Detected' ? 'ok' : ''}">${escapeHtml(provider.status)}${provider.limited ? ' - Scan limited' : ''}</div></td>
+              <td><div class="path wide">${escapeHtml(provider.primaryPath || 'No local folder found')}</div></td>
+              <td>${provider.fileCount} files</td>
+              <td>${bytes(provider.size)}</td>
+              <td class="list-actions">
+                <button class="button compact" data-action="open-cloud-path" data-path="${escapeHtml(provider.primaryPath || '')}" ${provider.primaryPath ? '' : 'disabled'}>Open</button>
+                <button class="pill blue" data-action="scan-cloud-duplicates" data-path="${escapeHtml(provider.primaryPath || '')}" ${provider.primaryPath ? '' : 'disabled'}>Duplicates</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    ` : '<div class="empty-state"><div><h2>Cloud Drive Cleaner</h2><p>Scan to find OneDrive, Google Drive, and Dropbox folders on this PC.</p></div></div>'}
   `;
 
-  view.innerHTML = shell('Cloud Drive Cleaner', body, `<button class="button primary" data-action="go-custom">Open Custom Clean</button>`);
+  view.innerHTML = shell('Cloud Drive Cleaner', body, `
+    <button class="button" data-action="go-custom">Open Custom Clean</button>
+    <button class="button primary" data-action="scan-cloud">Scan cloud folders</button>
+  `);
 }
 
 function renderSettings() {
@@ -460,7 +564,11 @@ function renderSettings() {
       <div class="metric"><div class="label">Deletes</div><div class="value">Cache only</div></div>
     </div>
   `;
-  view.innerHTML = plainView(body, `<button class="button primary" data-action="scan-health">Scan now</button>`);
+  view.innerHTML = plainView(body, `
+    <button class="button" data-action="open-safety">Safety notes</button>
+    <button class="button" data-action="open-github">GitHub</button>
+    <button class="button primary" data-action="scan-health">Scan now</button>
+  `);
   window.rice2k.version().then((version) => {
     const versionNode = document.querySelector('#version');
     if (versionNode) versionNode.textContent = version;
@@ -478,10 +586,15 @@ function renderHelp() {
         <tr><td>Cleanable files</td><td>Temp files, browser caches, thumbnails, old logs</td></tr>
         <tr><td>Review-only areas</td><td>Drivers, registry, installed apps, software updates</td></tr>
         <tr><td>Duplicate finder</td><td>Hashes files and reports matches without deleting them</td></tr>
+        <tr><td>Cloud folders</td><td>Reviews local OneDrive, Google Drive, and Dropbox folders without deleting cloud content</td></tr>
       </tbody>
     </table>
   `;
-  view.innerHTML = plainView(body, `<button class="button primary" data-action="go-health">Health Check</button>`);
+  view.innerHTML = plainView(body, `
+    <button class="button" data-action="open-release">Download portable app</button>
+    <button class="button" data-action="open-safety">Safety notes</button>
+    <button class="button primary" data-action="go-health">Health Check</button>
+  `);
 }
 
 function render() {
@@ -560,6 +673,9 @@ document.body.addEventListener('click', async (event) => {
     if (state.page === 'uninstaller' && state.apps.length === 0) {
       state.apps = await runTask('', () => window.rice2k.listInstalledApps()) || [];
     }
+    if (state.page === 'cloud' && !state.cloud) {
+      state.cloud = await runTask('', () => window.rice2k.scanCloudDrives());
+    }
     render();
     return;
   }
@@ -567,6 +683,10 @@ document.body.addEventListener('click', async (event) => {
   const action = target.dataset.action;
   if (action === 'scan-health') await scanHealth();
   if (action === 'scan-clean') await scanClean();
+  if (action === 'set-clean-filter') {
+    state.cleanFilter = target.dataset.filter || 'junk';
+    render();
+  }
   if (action === 'go-custom') {
     state.page = 'custom';
     if (!state.cleanable) await scanClean();
@@ -583,13 +703,17 @@ document.body.addEventListener('click', async (event) => {
     render();
   }
   if (action === 'toggle-all-clean') {
-    const ids = (state.cleanable?.locations || []).map((item) => item.id);
+    const ids = cleanLocationsForFilter().map((item) => item.id);
     const allSelected = ids.every((id) => state.selectedCleanIds.has(id));
-    state.selectedCleanIds = new Set(allSelected ? [] : ids);
+    if (allSelected) {
+      ids.forEach((id) => state.selectedCleanIds.delete(id));
+    } else {
+      ids.forEach((id) => state.selectedCleanIds.add(id));
+    }
     render();
   }
   if (action === 'clean-selected') {
-    const ids = [...state.selectedCleanIds];
+    const ids = visibleSelectedCleanIds();
     const result = await runTask('Cleanup complete.', () => window.rice2k.cleanLocations(ids));
     if (result) {
       showToast(`Removed ${result.removedFiles} files and freed ${bytes(result.removedSize)}.`);
@@ -609,15 +733,27 @@ document.body.addEventListener('click', async (event) => {
       render();
     }
   }
-  if (action === 'reveal') await window.rice2k.revealPath(target.dataset.path);
+  if (action === 'reveal' && target.dataset.path) await window.rice2k.revealPath(target.dataset.path);
   if (action === 'load-drivers') {
     state.drivers = await runTask('Driver scan complete.', () => window.rice2k.listDrivers()) || [];
     render();
   }
+  if (action === 'open-windows-update') await window.rice2k.openExternal('ms-settings:windowsupdate');
+  if (action === 'open-device-manager') await window.rice2k.openExternal('devmgmt.msc');
   if (action === 'load-updates') {
     state.updates = await runTask('Software scan complete.', () => window.rice2k.listSoftwareUpdates());
     render();
   }
+  if (action === 'update-software') {
+    const packageId = target.dataset.packageId;
+    if (packageId && window.confirm(`Update ${packageId} with Windows Package Manager?`)) {
+      const result = await runTask('', () => window.rice2k.updateSoftware(packageId));
+      showToast(result?.message || 'Update request finished.');
+      state.updates = await window.rice2k.listSoftwareUpdates();
+      render();
+    }
+  }
+  if (action === 'open-microsoft-store-updates') await window.rice2k.openExternal('ms-windows-store://downloadsandupdates');
   if (action === 'load-startup') {
     state.startup = await runTask('Startup scan complete.', () => window.rice2k.listStartup()) || [];
     render();
@@ -634,6 +770,34 @@ document.body.addEventListener('click', async (event) => {
       state.duplicates = await runTask('Duplicate scan complete.', () => window.rice2k.scanDuplicates(folder));
       render();
     }
+  }
+  if (action === 'scan-cloud') {
+    state.cloud = await runTask('Cloud scan complete.', () => window.rice2k.scanCloudDrives());
+    render();
+  }
+  if (action === 'open-cloud-path' && target.dataset.path) await window.rice2k.openExternal(target.dataset.path);
+  if (action === 'scan-cloud-duplicates') {
+    const folder = target.dataset.path;
+    if (folder) {
+      state.page = 'duplicates';
+      state.duplicates = await runTask('Duplicate scan complete.', () => window.rice2k.scanDuplicates(folder));
+      render();
+    }
+  }
+  if (action === 'open-release') await window.rice2k.openExternal(RELEASE_URL);
+  if (action === 'open-github') await window.rice2k.openExternal(REPO_URL);
+  if (action === 'open-safety') await window.rice2k.openExternal(SAFETY_URL);
+});
+
+document.body.addEventListener('input', (event) => {
+  const target = event.target.closest('[data-action]');
+  if (!target || target.dataset.action !== 'app-search') return;
+  state.appSearch = target.value;
+  render();
+  const input = document.querySelector('[data-action="app-search"]');
+  if (input) {
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
   }
 });
 

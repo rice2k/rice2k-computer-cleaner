@@ -14,6 +14,8 @@ const required = [
   'docs/screenshots/health-check.png',
   'docs/screenshots/custom-clean.png',
   'docs/screenshots/performance-optimizer.png',
+  'docs/screenshots/software-updater.png',
+  'docs/screenshots/cloud-drive-cleaner.png',
   'README.md'
 ];
 
@@ -24,11 +26,24 @@ for (const file of required) {
   }
 }
 
-require('../src/cleaner');
+const cleaner = require('../src/cleaner');
+for (const fn of [
+  'healthScan',
+  'scanCleanableLocations',
+  'cleanLocations',
+  'listAvailableUpdates',
+  'updateSoftwarePackage',
+  'scanCloudDrives',
+  'scanDuplicates'
+]) {
+  if (typeof cleaner[fn] !== 'function') {
+    throw new Error(`Cleaner engine is missing ${fn}.`);
+  }
+}
 
 const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
 if (/ccleaner/i.test(readme)) {
-  throw new Error('README should not mention third-party cleaner branding.');
+  throw new Error('README should not mention reference branding.');
 }
 
 console.log('Rice2k smoke test passed.');

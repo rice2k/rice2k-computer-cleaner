@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { execFile } = require('node:child_process');
 const path = require('node:path');
 const cleaner = require('./cleaner');
 
@@ -50,8 +51,10 @@ ipcMain.handle('processes:sleep', (_event, pid) => cleaner.sleepProcess(pid));
 ipcMain.handle('startup:list', () => cleaner.listStartupItems());
 ipcMain.handle('startup:open-settings', () => shell.openExternal('ms-settings:startupapps'));
 ipcMain.handle('software:list-updates', () => cleaner.listAvailableUpdates());
+ipcMain.handle('software:update', (_event, packageId) => cleaner.updateSoftwarePackage(packageId));
 ipcMain.handle('drivers:list', () => cleaner.listDriverAges());
 ipcMain.handle('apps:list-installed', () => cleaner.listInstalledApps());
+ipcMain.handle('cloud:scan', () => cleaner.scanCloudDrives());
 ipcMain.handle('folder:pick', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Choose a folder to scan',
@@ -71,8 +74,13 @@ ipcMain.handle('external:open', (_event, target) => {
     return false;
   }
 
-  if (target.startsWith('ms-settings:')) {
+  if (target.startsWith('ms-settings:') || target.startsWith('ms-windows-store:')) {
     shell.openExternal(target);
+    return true;
+  }
+
+  if (target === 'devmgmt.msc') {
+    execFile('mmc.exe', ['devmgmt.msc'], { windowsHide: true });
     return true;
   }
 

@@ -4,6 +4,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const outDir = path.join(root, 'docs', 'screenshots');
+const packageInfo = require('../package.json');
 
 const demoCleanable = {
   scannedAt: new Date().toISOString(),
@@ -47,6 +48,18 @@ const demoUpdates = {
   ]
 };
 
+const demoCloud = {
+  scannedAt: new Date().toISOString(),
+  detected: 2,
+  totalFiles: 2400,
+  totalSize: 4.7 * 1024 * 1024 * 1024,
+  providers: [
+    { id: 'onedrive', name: 'OneDrive', status: 'Detected', paths: ['C:\\Users\\Rice2k\\OneDrive'], cachePaths: [], primaryPath: 'C:\\Users\\Rice2k\\OneDrive', fileCount: 1200, folderCount: 80, size: 2.8 * 1024 * 1024 * 1024, skipped: 0, limited: false },
+    { id: 'google-drive', name: 'Google Drive', status: 'Detected', paths: ['G:\\My Drive'], cachePaths: [], primaryPath: 'G:\\My Drive', fileCount: 1200, folderCount: 74, size: 1.9 * 1024 * 1024 * 1024, skipped: 0, limited: false },
+    { id: 'dropbox', name: 'Dropbox', status: 'Not detected', paths: [], cachePaths: [], primaryPath: '', fileCount: 0, folderCount: 0, size: 0, skipped: 0, limited: false }
+  ]
+};
+
 const demoHealth = {
   scannedAt: new Date().toISOString(),
   score: 38,
@@ -68,7 +81,7 @@ const demoHealth = {
 };
 
 function registerDemoHandlers() {
-  ipcMain.handle('app:version', () => '1.0.0');
+  ipcMain.handle('app:version', () => packageInfo.version);
   ipcMain.handle('health:scan', () => demoHealth);
   ipcMain.handle('cleaner:scan', () => demoCleanable);
   ipcMain.handle('cleaner:clean', () => ({ cleanedAt: new Date().toISOString(), removedFiles: 0, removedSize: 0, skipped: 0, results: [] }));
@@ -77,8 +90,10 @@ function registerDemoHandlers() {
   ipcMain.handle('startup:list', () => demoStartup);
   ipcMain.handle('startup:open-settings', () => true);
   ipcMain.handle('software:list-updates', () => demoUpdates);
+  ipcMain.handle('software:update', () => ({ ok: true, message: 'Demo update finished.' }));
   ipcMain.handle('drivers:list', () => demoDrivers);
   ipcMain.handle('apps:list-installed', () => []);
+  ipcMain.handle('cloud:scan', () => demoCloud);
   ipcMain.handle('folder:pick', () => null);
   ipcMain.handle('duplicates:scan', () => ({ folderPath: null, groups: [], totalWasted: 0, fileCount: 0 }));
   ipcMain.handle('path:reveal', () => true);
@@ -129,6 +144,12 @@ app.whenReady().then(async () => {
 
   await clickPage(win, 'optimizer');
   await capture(win, 'performance-optimizer.png');
+
+  await clickPage(win, 'software');
+  await capture(win, 'software-updater.png');
+
+  await clickPage(win, 'cloud');
+  await capture(win, 'cloud-drive-cleaner.png');
 
   win.destroy();
   app.quit();

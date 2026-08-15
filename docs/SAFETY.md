@@ -21,7 +21,9 @@ Rice2k Computer Cleaner is designed to be conservative.
 
 ## Review-only areas
 
-The app can list outdated software through Windows Package Manager, driver age data through Windows system inventory, installed applications, and startup entries. Those areas are intentionally review-only or route to Windows settings because changing them can affect the whole machine.
+The app can list driver age data through Windows system inventory, installed applications, startup entries, duplicate files, and local cloud drive folders. Those areas are intentionally review-only or route to Windows settings because changing them can affect the whole machine.
+
+Software updates are different: when Windows Package Manager is available, the app can run a selected `winget upgrade` after the user confirms the prompt. The update itself is handled by Windows Package Manager.
 
 ## Process sleep
 

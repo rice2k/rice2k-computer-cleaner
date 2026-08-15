@@ -9,6 +9,7 @@ const RECENT_FILE_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_SCAN_FILES_PER_LOCATION = 9000;
 const MAX_DUPLICATE_FILES = 12000;
+const MAX_CLOUD_SCAN_FILES = 15000;
 const POWERSHELL = 'powershell.exe';
 
 function defined(value) {
@@ -568,6 +569,175 @@ async function listAvailableUpdates() {
   }
 }
 
+async function updateSoftwarePackage(packageId) {
+  if (!/^[A-Za-z0-9_.:+-]+$/.test(String(packageId || ''))) {
+    return { ok: false, message: 'Invalid package id.' };
+  }
+
+  try {
+    const result = await execFileAsync('winget.exe', [
+      'upgrade',
+      '--id',
+      packageId,
+      '--exact',
+      '--accept-source-agreements',
+      '--accept-package-agreements',
+      '--disable-interactivity'
+    ], { timeout: 120000 });
+
+    return {
+      ok: true,
+      message: 'Update command finished.',
+      stdout: result.stdout,
+      stderr: result.stderr
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error.stderr || error.stdout || error.message,
+      stdout: error.stdout || '',
+      stderr: error.stderr || ''
+    };
+  }
+}
+
+async function scanFolderStats(rootPath, maxFiles = MAX_CLOUD_SCAN_FILES) {
+  const root = path.resolve(rootPath);
+  const result = { fileCount: 0, folderCount: 0, size: 0, skipped: 0, limited: false };
+  const stack = [root];
+
+  while (stack.length > 0 && result.fileCount < maxFiles) {
+    const current = stack.pop();
+    let entries;
+    try {
+      entries = await fs.readdir(current, { withFileTypes: true });
+    } catch {
+      result.skipped += 1;
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (result.fileCount >= maxFiles) {
+        result.limited = true;
+        break;
+      }
+
+      const fullPath = path.join(current, entry.name);
+      if (!isInside(fullPath, root) || entry.isSymbolicLink()) {
+        result.skipped += 1;
+        continue;
+      }
+
+      if (entry.isDirectory()) {
+        result.folderCount += 1;
+        stack.push(fullPath);
+        continue;
+      }
+
+      if (!entry.isFile()) continue;
+      try {
+        const stat = await fs.stat(fullPath);
+        result.fileCount += 1;
+        result.size += stat.size;
+      } catch {
+        result.skipped += 1;
+      }
+    }
+  }
+
+  return result;
+}
+
+async function existingDirectories(paths) {
+  const found = [];
+  for (const folderPath of unique(paths)) {
+    if (!folderPath) continue;
+    try {
+      const stat = await fs.stat(folderPath);
+      if (stat.isDirectory()) found.push(path.resolve(folderPath));
+    } catch {
+      // Missing cloud providers are normal.
+    }
+  }
+  return found;
+}
+
+async function scanCloudDrives() {
+  const userProfile = process.env.USERPROFILE || os.homedir();
+  const localAppData = process.env.LOCALAPPDATA;
+  const appData = process.env.APPDATA;
+  const providers = [
+    {
+      id: 'onedrive',
+      name: 'OneDrive',
+      paths: [
+        process.env.OneDrive,
+        process.env.OneDriveConsumer,
+        process.env.OneDriveCommercial,
+        userProfile && path.join(userProfile, 'OneDrive')
+      ],
+      cachePaths: localAppData ? [path.join(localAppData, 'Microsoft', 'OneDrive')] : []
+    },
+    {
+      id: 'google-drive',
+      name: 'Google Drive',
+      paths: [
+        userProfile && path.join(userProfile, 'Google Drive'),
+        'G:\\My Drive'
+      ],
+      cachePaths: localAppData ? [path.join(localAppData, 'Google', 'DriveFS')] : []
+    },
+    {
+      id: 'dropbox',
+      name: 'Dropbox',
+      paths: [
+        userProfile && path.join(userProfile, 'Dropbox')
+      ],
+      cachePaths: unique([
+        localAppData && path.join(localAppData, 'Dropbox'),
+        appData && path.join(appData, 'Dropbox')
+      ])
+    }
+  ];
+
+  const results = [];
+  for (const provider of providers) {
+    const paths = await existingDirectories(provider.paths);
+    const cachePaths = await existingDirectories(provider.cachePaths);
+    const scanTargets = unique([...paths, ...cachePaths]);
+    let stats = { fileCount: 0, folderCount: 0, size: 0, skipped: 0, limited: false };
+
+    for (const target of scanTargets) {
+      const targetStats = await scanFolderStats(target);
+      stats = {
+        fileCount: stats.fileCount + targetStats.fileCount,
+        folderCount: stats.folderCount + targetStats.folderCount,
+        size: stats.size + targetStats.size,
+        skipped: stats.skipped + targetStats.skipped,
+        limited: stats.limited || targetStats.limited
+      };
+    }
+
+    results.push({
+      id: provider.id,
+      name: provider.name,
+      status: scanTargets.length ? 'Detected' : 'Not detected',
+      paths,
+      cachePaths,
+      primaryPath: paths[0] || cachePaths[0] || '',
+      ...stats
+    });
+  }
+
+  return {
+    scannedAt: new Date().toISOString(),
+    providers: results,
+    detected: results.filter((provider) => provider.status === 'Detected').length,
+    totalSize: results.reduce((sum, provider) => sum + provider.size, 0),
+    totalFiles: results.reduce((sum, provider) => sum + provider.fileCount, 0)
+  };
+}
+
 async function listBackgroundProcesses() {
   const script = `
 $ErrorActionPreference = 'SilentlyContinue'
@@ -811,10 +981,12 @@ module.exports = {
   healthScan,
   listAvailableUpdates,
   listBackgroundProcesses,
+  scanCloudDrives,
   listDriverAges,
   listInstalledApps,
   listStartupItems,
   scanCleanableLocations,
   scanDuplicates,
-  sleepProcess
+  sleepProcess,
+  updateSoftwarePackage
 };
