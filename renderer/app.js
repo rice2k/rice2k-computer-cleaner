@@ -525,6 +525,7 @@ async function scanHealth() {
     state.drivers = data.drivers || [];
     state.updates = data.updates || null;
     state.startup = data.startup || [];
+    render();
   }
 }
 
@@ -533,6 +534,7 @@ async function scanClean() {
   if (data) {
     state.cleanable = data;
     state.selectedCleanIds = new Set(data.locations.filter((item) => item.fileCount > 0).map((item) => item.id));
+    render();
   }
 }
 
@@ -594,7 +596,10 @@ document.body.addEventListener('click', async (event) => {
       await scanClean();
     }
   }
-  if (action === 'load-processes') state.processes = await runTask('App scan complete.', () => window.rice2k.listProcesses()) || [];
+  if (action === 'load-processes') {
+    state.processes = await runTask('App scan complete.', () => window.rice2k.listProcesses()) || [];
+    render();
+  }
   if (action === 'sleep-process') {
     const name = target.closest('tr')?.querySelector('td')?.textContent?.trim() || 'this app';
     if (window.confirm(`Put ${name} to sleep? Unsaved work in that app can be lost.`)) {
@@ -605,16 +610,29 @@ document.body.addEventListener('click', async (event) => {
     }
   }
   if (action === 'reveal') await window.rice2k.revealPath(target.dataset.path);
-  if (action === 'load-drivers') state.drivers = await runTask('Driver scan complete.', () => window.rice2k.listDrivers()) || [];
-  if (action === 'load-updates') state.updates = await runTask('Software scan complete.', () => window.rice2k.listSoftwareUpdates());
-  if (action === 'load-startup') state.startup = await runTask('Startup scan complete.', () => window.rice2k.listStartup()) || [];
+  if (action === 'load-drivers') {
+    state.drivers = await runTask('Driver scan complete.', () => window.rice2k.listDrivers()) || [];
+    render();
+  }
+  if (action === 'load-updates') {
+    state.updates = await runTask('Software scan complete.', () => window.rice2k.listSoftwareUpdates());
+    render();
+  }
+  if (action === 'load-startup') {
+    state.startup = await runTask('Startup scan complete.', () => window.rice2k.listStartup()) || [];
+    render();
+  }
   if (action === 'open-startup-settings') await window.rice2k.openStartupSettings();
-  if (action === 'load-apps') state.apps = await runTask('App list refreshed.', () => window.rice2k.listInstalledApps()) || [];
+  if (action === 'load-apps') {
+    state.apps = await runTask('App list refreshed.', () => window.rice2k.listInstalledApps()) || [];
+    render();
+  }
   if (action === 'open-app-settings') await window.rice2k.openExternal('ms-settings:appsfeatures');
   if (action === 'choose-duplicate-folder') {
     const folder = await window.rice2k.pickFolder();
     if (folder) {
       state.duplicates = await runTask('Duplicate scan complete.', () => window.rice2k.scanDuplicates(folder));
+      render();
     }
   }
 });

@@ -1,6 +1,6 @@
 # Rice2k Computer Cleaner
 
-Rice2k Computer Cleaner is a Windows desktop cleanup app inspired by the dark, scan-first cleaner layout shown in the reference screenshots. The design is original, uses a custom Rice2k app icon, and keeps cleanup actions conservative.
+Rice2k Computer Cleaner is a Windows desktop PC care app with a dark, scan-first workspace. The design is original, uses a custom Rice2k app icon, and keeps cleanup actions conservative.
 
 ## Features
 
@@ -17,21 +17,25 @@ Rice2k Computer Cleaner is a Windows desktop cleanup app inspired by the dark, s
 
 ## Safety model
 
-The cleaner only deletes safe cache and temp files that can be recreated by Windows or apps. It does not delete documents, downloads, cloud files, registry keys, drivers, installed apps, or duplicate files.
+The app only deletes safe cache and temp files that can be recreated by Windows or apps. It does not delete documents, downloads, cloud files, registry keys, drivers, installed apps, or duplicate files.
 
 See [docs/SAFETY.md](docs/SAFETY.md) for the detailed cleanup boundaries.
 
-## Screens and style
+## Screenshots
 
-The app uses a CCleaner-like dark workspace pattern:
+![Health Check](docs/screenshots/health-check.png)
+
+![Custom Clean](docs/screenshots/custom-clean.png)
+
+![Performance Optimizer](docs/screenshots/performance-optimizer.png)
+
+## Interface
 
 - left sidebar navigation
 - top strip with tabs where useful
 - health score card
 - issue tables with orange counts
 - bottom action bar with scan and resolve buttons
-
-The app name, icon, colors, and code are original.
 
 ## Requirements
 
@@ -49,10 +53,11 @@ npm start
 ## Build installer and portable app
 
 ```powershell
+npm run portable
 npm run dist
 ```
 
-Build output appears in the `release` folder.
+Portable and installer output appears in the `release` folder.
 
 The first packaging run downloads `electron-builder` through `npx`.
 

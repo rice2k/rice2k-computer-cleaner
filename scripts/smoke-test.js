@@ -11,6 +11,9 @@ const required = [
   'renderer/app.js',
   'assets/rice2k-cleaner-icon.ico',
   'assets/rice2k-cleaner-icon.png',
+  'docs/screenshots/health-check.png',
+  'docs/screenshots/custom-clean.png',
+  'docs/screenshots/performance-optimizer.png',
   'README.md'
 ];
 
@@ -22,4 +25,10 @@ for (const file of required) {
 }
 
 require('../src/cleaner');
+
+const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
+if (/ccleaner/i.test(readme)) {
+  throw new Error('README should not mention third-party cleaner branding.');
+}
+
 console.log('Rice2k smoke test passed.');
