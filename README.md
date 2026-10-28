@@ -94,3 +94,9 @@ src/          Electron main process, preload bridge, and cleaner engine
 - Duplicate finding is report-only.
 - Cloud folder scanning is report-only.
 - Some cleanup targets may skip locked files, which is normal while apps are running.
+
+## Related Rice2K projects
+
+Related desktop maintenance projects include Windows recovery workflows and hardware diagnostics. Some tools require elevated permissions and should only be run on systems you administer.
+
+[RescueDesk USB](https://github.com/rice2k/r2k-rescuedesk-usb) · [Computer Asset System Info](https://github.com/rice2k/Computer-Asset-System-Info) · [Search Windows utilities](https://rice2k.github.io/rice2k-startdeck/projects/?q=Windows)
